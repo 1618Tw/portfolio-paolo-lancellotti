@@ -74,15 +74,19 @@ export function Carousel({ items, onActiveChange }: Props) {
     onActiveChange(idx);
   });
 
-  // Trackpad horizontal wheel.
+  // Wheel input — vertical mouse wheel drives horizontal carousel motion,
+  // and horizontal trackpad swipe also works. Whichever axis has the larger
+  // delta wins.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     let wheelTimer: number | null = null;
     const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaX) < 1) return; // ignore pure vertical
+      const delta =
+        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 1) return;
       e.preventDefault();
-      x.set(x.get() - e.deltaX);
+      x.set(x.get() - delta);
       if (wheelTimer) window.clearTimeout(wheelTimer);
       wheelTimer = window.setTimeout(() => normalize(), 120);
     };
