@@ -12,7 +12,7 @@ export function ProjectMeta({ work }: { work: Work }) {
     <a
       href={work.visitSite}
       target="_blank"
-      rel="noreferrer"
+      rel="noreferrer noopener"
       className="underline-offset-2 hover:underline"
     >
       Visit site
