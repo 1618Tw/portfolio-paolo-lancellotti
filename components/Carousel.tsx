@@ -33,42 +33,46 @@ export function Carousel({ items, onActiveChange }: Props) {
   const [trackWidth, setTrackWidth] = useState(0);
   const N = items.length;
 
-  // Render items three times so wrap-around is invisible.
-  const tripled = [...items, ...items, ...items];
+  // Render items five times so even at the edges of the middle copy there are
+  // always real bars on screen. Wrap-around stays in the middle (2..3 copy span).
+  const COPIES = 5;
+  const tripled = Array.from({ length: COPIES }).flatMap(() => items);
 
   useEffect(() => {
     const measure = () => {
       const vw = window.innerWidth;
       const barWidth = vw / barsVisible;
       setTrackWidth(barWidth * N);
-      // Neutral start: middle copy aligned at viewport start.
-      x.set(-barWidth * N);
+      // Neutral start: position so the middle copy is centered in viewport.
+      x.set(-barWidth * N * Math.floor(COPIES / 2));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [N, barsVisible, x]);
 
-  // Wrap modulo trackWidth so x always lands in the middle copy range.
-  const normalize = () => {
-    if (trackWidth === 0) return;
-    const cur = x.get();
-    const tw = trackWidth;
-    // We want x in [-2*tw, -tw] (middle copy aligned).
-    let nx = cur;
-    while (nx > -tw) nx -= tw;
-    while (nx < -2 * tw) nx += tw;
-    x.set(nx);
-  };
-
-  // Active index from x.
+  // Single change listener: wrap immediately so x stays in the middle copy
+  // range, then emit the active index. Because every copy is visually
+  // identical, the wrap is invisible — but it guarantees bars are always on
+  // screen no matter how far the user scrolls or drags.
   useMotionValueEvent(x, "change", (latest) => {
-    if (trackWidth === 0 || !onActiveChange) return;
-    const barWidth = trackWidth / N;
-    // Center bar in viewport: bar index where bar center == viewport center.
+    if (trackWidth === 0) return;
+    const tw = trackWidth;
+    // Target range: middle copy. With COPIES=5, that's indices 2..3, i.e.
+    // x in [-3*tw, -2*tw]. Wrap by adding/subtracting tw until in range.
+    const lower = -Math.floor(COPIES / 2 + 1) * tw; // -3*tw
+    const upper = -Math.floor(COPIES / 2) * tw;     // -2*tw
+    let nx = latest;
+    if (nx > upper || nx < lower) {
+      while (nx > upper) nx -= tw;
+      while (nx < lower) nx += tw;
+      x.set(nx);
+      return; // the new set fires another change event; index update happens there
+    }
+
+    if (!onActiveChange) return;
+    const barWidth = tw / N;
     const viewportCenter = window.innerWidth / 2;
-    // Position of bar i in the track: i*barWidth + x. Bar center: i*barWidth + x + barWidth/2.
-    // Solve for closest integer i: i = (viewportCenter - x - barWidth/2) / barWidth.
     const raw = (viewportCenter - latest - barWidth / 2) / barWidth;
     const idx = ((Math.round(raw) % N) + N) % N;
     onActiveChange(idx);
@@ -76,27 +80,20 @@ export function Carousel({ items, onActiveChange }: Props) {
 
   // Wheel input — vertical mouse wheel drives horizontal carousel motion,
   // and horizontal trackpad swipe also works. Whichever axis has the larger
-  // delta wins.
+  // delta wins. Wrapping happens in the change listener above.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    let wheelTimer: number | null = null;
     const onWheel = (e: WheelEvent) => {
       const delta =
         Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (Math.abs(delta) < 1) return;
       e.preventDefault();
       x.set(x.get() - delta);
-      if (wheelTimer) window.clearTimeout(wheelTimer);
-      wheelTimer = window.setTimeout(() => normalize(), 120);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      if (wheelTimer) window.clearTimeout(wheelTimer);
-    };
-    // normalize intentionally not in deps — closure captures trackWidth via state read at call time
-  }, [x, trackWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [x]);
 
   return (
     <div
@@ -109,12 +106,11 @@ export function Carousel({ items, onActiveChange }: Props) {
         style={{ x }}
         drag="x"
         dragMomentum
-        dragElastic={0.1}
-        onDragEnd={normalize}
+        dragElastic={0}
       >
         {tripled.map((item, i) => (
           <CarouselBar
-            key={`${item.slug ?? "coming-soon"}-${i}`}
+            key={`${item.slug}-${i}`}
             item={item}
             widthPct={100 / barsVisible}
           />
