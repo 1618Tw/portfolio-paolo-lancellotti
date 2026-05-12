@@ -4,17 +4,13 @@ export type Work = {
   type: string;
   year: number;
   visitSite?: string;
+  externalUrl?: string;
   cover: string;
+  /** Optional separate image for the project page hero. Falls back to `cover`. */
+  hero?: string;
   order: number;
   body: string;
   clickable: true;
 };
 
-export type ComingSoonSentinel = {
-  slug: null;
-  title: string;
-  cover: string;
-  clickable: false;
-};
-
-export type CarouselItem = Work | ComingSoonSentinel;
+export type CarouselItem = Work;

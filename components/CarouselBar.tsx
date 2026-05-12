@@ -11,8 +11,9 @@ type Props = {
 };
 
 export function CarouselBar({ item, widthPct }: Props) {
-  const isClickable = item.clickable;
-  const layoutId = isClickable ? `hero-${item.slug}` : undefined;
+  const isExternal = !!item.externalUrl;
+  // Shared-element morph only makes sense for internal navigations.
+  const layoutId = isExternal ? undefined : `hero-${item.slug}`;
 
   const inner = (
     <motion.div
@@ -31,7 +32,7 @@ export function CarouselBar({ item, widthPct }: Props) {
     </motion.div>
   );
 
-  const overlay = isClickable && (
+  const overlay = (
     <motion.span
       className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center pb-8 text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100"
       initial={false}
@@ -40,24 +41,29 @@ export function CarouselBar({ item, widthPct }: Props) {
     </motion.span>
   );
 
-  const wrapperClass =
-    "group relative flex-shrink-0 h-[70vh] " +
-    (isClickable ? "cursor-pointer" : "cursor-default");
-
+  const wrapperClass = "group relative flex-shrink-0 h-[70vh] cursor-pointer";
   const style = { width: `calc(${widthPct}vw - var(--bar-gap, 12px))` };
 
-  if (isClickable) {
+  if (isExternal) {
     return (
-      <Link href={`/works/${item.slug}`} className={wrapperClass} style={style} draggable={false}>
+      <a
+        href={item.externalUrl}
+        target="_blank"
+        rel="noreferrer noopener"
+        className={wrapperClass}
+        style={style}
+        draggable={false}
+      >
         {inner}
         {overlay}
-      </Link>
+      </a>
     );
   }
 
   return (
-    <div className={wrapperClass} style={style} aria-disabled>
+    <Link href={`/works/${item.slug}`} className={wrapperClass} style={style} draggable={false}>
       {inner}
-    </div>
+      {overlay}
+    </Link>
   );
 }

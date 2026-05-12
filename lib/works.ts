@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
-import { COPY } from "./copy";
 import type { CarouselItem, Work } from "./types";
 
 const CONTENT_DIR = path.join(process.cwd(), "content", "works");
@@ -24,13 +23,22 @@ function readOneWork(filename: string): Work {
     throw new Error(`content/works/${filename}: cover image not found at ${data.cover}`);
   }
 
+  if (data.hero) {
+    const heroFsPath = path.join(PUBLIC_DIR, String(data.hero).replace(/^\//, ""));
+    if (!fs.existsSync(heroFsPath)) {
+      throw new Error(`content/works/${filename}: hero image not found at ${data.hero}`);
+    }
+  }
+
   return {
     slug: String(data.slug),
     title: String(data.title),
     type: String(data.type),
     year: Number(data.year),
     visitSite: data.visitSite ? String(data.visitSite) : undefined,
+    externalUrl: data.externalUrl ? String(data.externalUrl) : undefined,
     cover: String(data.cover),
+    hero: data.hero ? String(data.hero) : undefined,
     order: Number(data.order),
     body: content,
     clickable: true,
@@ -55,17 +63,12 @@ export function readWorks(): Work[] {
 }
 
 export function readCarouselItems(): CarouselItem[] {
-  const works = readWorks();
-  const comingSoonFsPath = path.join(PUBLIC_DIR, COPY.comingSoonCover.replace(/^\//, ""));
-  if (!fs.existsSync(comingSoonFsPath)) {
-    throw new Error(`coming-soon cover not found at ${COPY.comingSoonCover}`);
-  }
-  return [
-    ...works,
-    { slug: null, title: COPY.comingSoonTitle, cover: COPY.comingSoonCover, clickable: false },
-  ];
+  return readWorks();
 }
 
+/** Internal-page works only — external-link works return null so the route 404s. */
 export function findWork(slug: string): Work | null {
-  return readWorks().find((w) => w.slug === slug) ?? null;
+  const w = readWorks().find((w) => w.slug === slug);
+  if (!w || w.externalUrl) return null;
+  return w;
 }

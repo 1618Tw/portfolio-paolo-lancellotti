@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Local reference screenshots (not part of the site)
 /Screenshot*.png
+
+# Heavy source media — site uses normalized copies under /public/works/
+/content/works/*/
